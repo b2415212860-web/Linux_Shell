@@ -1,0 +1,12 @@
+curl -sfL https://rancher-mirror.oss-cn-beijing.aliyuncs.com/k3s/k3s-install.sh | INSTALL_K3S_VERSION="v1.29.10+k3s1" sh -、
+
+### 安装k3s Master节点 最新版
+curl -sfL https://rancher-mirror.rancher.cn/k3s/k3s-install.sh | INSTALL_K3S_MIRROR=cn sh -
+### 安装k3s  Agent节点 最新版
+curl -sfL https://rancher-mirror.rancher.cn/k3s/k3s-install.sh | INSTALL_K3S_MIRROR=cn K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken sh -
+
+### 安装k3s v1.29 Master  #添加 INSTALL_K3S_VERSION=""
+curl -sfL https://rancher-mirror.rancher.cn/k3s/k3s-install.sh | INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION="v1.29.10+k3s1" sh -
+
+### 安装k3s v1.29 agent  #添加 INSTALL_K3S_VERSION=""
+curl -sfL https://rancher-mirror.rancher.cn/k3s/k3s-install.sh | INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION="v1.29.10+k3s1" K3S_URL=https://172.21.30.144:6443 K3S_TOKEN=K1067af9fce589f60c5ae71abeae2138c06f401df13c60b024a55d08867cf6d76f3::server:f77e6232ed49605fbc9cacc0251b5614 sh -

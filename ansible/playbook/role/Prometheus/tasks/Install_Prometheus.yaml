@@ -1,0 +1,90 @@
+---
+- name: install_prometheus
+  hosts: ansible
+  become: true
+
+  vars:
+    prometheus_version: 2.53.5
+    prometheus_sha256: sha256:456eb31530484d181e860e329fa0c6628e79eb388fac670cdeb4fa5d57c74ed9
+    prometheus_user: root
+    prometheus_install_dir: /usr/local/prometheus
+    prometheus_config_file: "{{ prometheus_install_dir }}/prometheus.yml"
+    prometheus_data_dir: "{{ prometheus_install_dir }}/data"
+    prometheus_listen_address: ":9090"
+
+  tasks:
+
+    - name: 检查Prometheus是否存在
+      stat:
+        path: /tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz
+      register: prometheus_tarball
+
+    - name: download prometheus
+      get_url: 
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: /tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz
+      when: not prometheus_tarball.stat.exists
+#prometheus-2.53.5.linux-amd64.tar.gz
+    - name: create prometheus_dir 创建安装目录
+      file:
+        path: "{{ prometheus_install_dir }}"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        mode: "0755"
+
+    - name: 安装解压必备依赖包 (tar 和 gzip)
+      yum:
+        name:
+          - tar
+          - gzip
+        state: present
+
+    - name: execute prometheus 解压Prometheus
+      unarchive:
+        src: /tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz
+        dest: /usr/local/prometheus
+        remote_src: yes
+        extra_opts:
+          - "--strip-components=1"
+        creates: "{{ prometheus_install_dir }}/prometheus"
+        mode: "0755"
+
+    - name: update prometheus.serivce 加载Prometheus的Service
+      template:
+        src: /opt/ansible/roles/prometheus/templates/prometheus.service.j2
+        dest: /etc/systemd/system/prometheus.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - Reload systemd daemon
+        - Restart prometheus
+
+    - name: ensure prometheus started 确保运行
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+
+    - name: firewall Prometheus 9090
+      firewalld:
+        port: 9090/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+      # 建议加上 ignore_errors，防止部分内网服务器根本没有启用防火墙而导致剧本报错中止
+      ignore_errors: yes
+
+  handlers:
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+        enabled: yes
+
+

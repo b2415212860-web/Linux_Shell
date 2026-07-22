@@ -1,0 +1,22 @@
+# global：全局配置段，定义所有告警渠道共用的基础信息（如邮件服务器）
+global:
+  resolve_timeout: 5m  # 告警超时时间：5分钟未更新则标记为“已解决”
+  smtp_smarthost: 'smtp.qq.com:587'  # QQ邮箱SMTP服务器地址+端口（587为STARTTLS端口）
+  smtp_from: '1924952235@qq.com'  # 发件人邮箱（需与SMTP服务器匹配）
+  smtp_auth_username: '1924952235@qq.com'  # 发件人邮箱账号
+# 注意：此处为QQ邮箱“授权码”，非登录密码！获取路径：QQ邮箱→设置→账户→生成授权码
+  smtp_auth_password: 'fxhtthpowchueidb'
+  smtp_require_tls: true  # 启用TLS
+# route：告警路由规则，定义Alertmanager如何处理告警
+route:
+  group_by: ['alertname']  # 按“告警名称”分组（如所有“InstanceDown”告警合并）
+  group_wait: 20s  # 首次告警等待20秒：收集同组内的新告警，合并后发送
+  group_interval: 5m  # 同组告警再次发送间隔：5分钟（避免频繁通知）
+  repeat_interval: 20m  # 重复告警间隔：20分钟（同一告警触发后，每20分钟重发一次）
+  receiver: 'my-email'  # 默认告警接收器（指向下方的“my-email”）
+# receivers：告警接收器定义，指定告警发送到哪里
+receivers:
+- name: 'my-email'  # 接收器名称（需与route中的receiver一致）
+  email_configs:  # 邮件接收器配置
+  - to: '2415212860@qq.com'  # 收件人邮箱（可填写多个，用逗号分隔）
+    send_resolved: true  # 发送”已解决”通知（告警恢复后，主动告知收件人）

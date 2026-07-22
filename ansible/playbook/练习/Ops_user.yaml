@@ -1,0 +1,23 @@
+---
+- name: Create user
+  hosts: all_servers
+  become: true
+
+
+  tasks:
+    - name: create group devops
+      group:
+          name: devops
+          state: present
+          system: false
+      
+    - name: create user ops
+      user:
+        name: ops
+        group: devops
+        groups: root
+        append: yes
+        create_home: yes
+        shell: /bin/bash
+        state: present
+

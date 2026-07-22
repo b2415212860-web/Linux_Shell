@@ -1,0 +1,25 @@
+groups:
+#告警组1：所有 实例下线监控
+#若某个 Instance的up指标的值转为0持续超过一分钟后将出发告警
+  - name: AllInstance
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: 'critical'
+        annotations:
+          title: 'Instance down'
+          description: '{{ $labels.instance }} Instance has been down for more than 1 minute.'
+
+  - name: node_alert
+    rules:
+      - alert: cpu_alert
+        expr: 100 * (1 - avg(irate(node_cpu_seconds_total{mode="idle"}[1m])) by (instance)) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "instance: {{ $labels.instance }},cpu usages is tool high ! values: {{$value}}"
+          summary: "cpu usage is too high on {{ $labels.instance }}"
+

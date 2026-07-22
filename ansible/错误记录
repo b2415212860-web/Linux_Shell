@@ -1,0 +1,6 @@
+systemctl grafana启动 遭遇203错误
+#解决办法
+修复grafana-server.service中exec执行配置
+修复203错误后重启grafana依旧错误且无错误码
+使用systemctl的日志查询系统journalctl 查询
+发现grafana-server.service使用的是旧的-homepath参数，导致报错退出

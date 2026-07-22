@@ -1,0 +1,13 @@
+事件：
+root能使用docker compose，而jenkins用户无法使用docker compose
+思路：
+检查docker compose是否赋予所属组、其他人 权限
+检查docker compose路径是否不一致
+解决办法：
+安装到系统全局路径
+发现docker存放在root家目录，jenkins无法访问
+把docker compose复制放在/usr/local/bin
+或者作为docker插件使用
+放到/usr/local/lib/docker/cli-plugins
+最后赋予权限
+把jenkins加入docker组

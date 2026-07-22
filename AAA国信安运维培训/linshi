@@ -1,0 +1,113 @@
+[root@localhost ~]# mdadm -Cv /dev/md0 -n 3 -l 5 /dev/sdb /dev/sdc /dev/sdd
+mdadm: layout defaults to left-symmetric
+mdadm: layout defaults to left-symmetric
+mdadm: chunk size defaults to 512K
+mdadm: partition table exists on /dev/sdb
+mdadm: partition table exists on /dev/sdb but will be lost or
+       meaningless after creating array
+mdadm: partition table exists on /dev/sdc
+mdadm: partition table exists on /dev/sdc but will be lost or
+       meaningless after creating array
+mdadm: /dev/sdd appears to be part of a raid array:
+       level=raid5 devices=3 ctime=Sat Jul 11 11:01:40 2026
+mdadm: size set to 5237760K
+Continue creating array? y
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md0 started.
+[root@localhost ~]# df -h
+文件系统                 容量  已用  可用 已用% 挂载点
+devtmpfs                 1.9G     0  1.9G    0% /dev
+tmpfs                    1.9G     0  1.9G    0% /dev/shm
+tmpfs                    1.9G   12M  1.9G    1% /run
+tmpfs                    1.9G     0  1.9G    0% /sys/fs/cgroup
+/dev/mapper/centos-root   36G  1.8G   34G    5% /
+/dev/sda1               1014M  151M  864M   15% /boot
+tmpfs                    378M     0  378M    0% /run/user/0
+[root@localhost ~]# pvcreate /dev/md0 
+  Physical volume "/dev/md0" successfully created.
+
+[root@localhost ~]# vgcreate vg100 /dev/md0
+  Volume group "vg100" successfully created
+
+  [root@localhost ~]# lvcreate vg100 --name v100 --size 1G
+
+  Logical volume "v100" created.
+
+  [root@localhost ~]# mkfs -t ext4 /dev/vg100/v100 
+mke2fs 1.42.9 (28-Dec-2013)
+文件系统标签=
+OS type: Linux
+块大小=4096 (log=2)
+分块大小=4096 (log=2)
+Stride=128 blocks, Stripe width=256 blocks
+65536 inodes, 262144 blocks
+13107 blocks (5.00%) reserved for the super user
+第一个数据块=0
+Maximum filesystem blocks=268435456
+8 block groups
+32768 blocks per group, 32768 fragments per group
+8192 inodes per group
+Superblock backups stored on blocks: 
+        32768, 98304, 163840, 229376
+
+Allocating group tables: 完成                            
+正在写入inode表: 完成                            
+Creating journal (8192 blocks): 完成
+Writing superblocks and filesystem accounting information: 完成
+
+[root@localhost ~]# echo '/dev/vg100/v100 /mnt/raid5 ext4 defaults 0 0' >> /etc/fstab
+[root@localhost ~]# mount -a
+
+[root@localhost ~]# df -h | grep v100
+/dev/mapper/vg100-v100   976M  2.6M  907M    1% /mnt/raid5
+[root@localhost ~]# lvextend /dev/mapper/vg100-v100  --size 2G
+  Size of logical volume vg100/v100 changed from 1.00 GiB (256 extents) to 2.00 GiB (512 extents).
+  Logical volume vg100/v100 successfully resized.
+[root@localhost ~]# resize2fs /dev/mapper/vg100-v100 
+resize2fs 1.42.9 (28-Dec-2013)
+Filesystem at /dev/mapper/vg100-v100 is mounted on /mnt/raid5; on-line resizing required
+old_desc_blocks = 1, new_desc_blocks = 1
+The filesystem on /dev/mapper/vg100-v100 is now 524288 blocks long.
+
+[root@localhost ~]# df -h | grep v100
+/dev/mapper/vg100-v100   2.0G  3.0M  1.9G    1% /mnt/raid5
+
+[root@localhost ~]# touch /mnt/raid5/test.txt && head -c 10M /dev/zero > /mnt/raid5/test.txt
+[root@localhost ~]# ls -lh /mnt/raid5/
+总用量 11M
+drwx------. 2 root root 16K 7月  11 21:26 lost+found
+-rw-r--r--. 1 root root 10M 7月  11 22:08 test.txt
+
+###缩小
+[root@localhost ~]# df -h | grep v100
+/dev/mapper/vg100-v100   2.0G  3.0M  1.9G    1% /mnt/raid5
+[root@localhost ~]# touch /mnt/raid5/test.txt && head -c 10M /dev/zero > /mnt/raid5/test.txt
+[root@localhost ~]# ls -lh /mnt/raid5/
+总用量 11M
+drwx------. 2 root root 16K 7月  11 21:26 lost+found
+-rw-r--r--. 1 root root 10M 7月  11 22:08 test.txt
+[root@localhost ~]# umount /mnt/raid5
+[root@localhost ~]# e2fsck -f /dev/vg100/v100 
+e2fsck 1.42.9 (28-Dec-2013)
+第一步: 检查inode,块,和大小
+第二步: 检查目录结构
+第3步: 检查目录连接性
+Pass 4: Checking reference counts
+第5步: 检查簇概要信息
+/dev/vg100/v100: 12/131072 files (0.0% non-contiguous), 19756/524288 blocks
+
+[root@localhost ~]# resize2fs /dev/vg100/v100 1546M
+resize2fs 1.42.9 (28-Dec-2013)
+Resizing the filesystem on /dev/vg100/v100 to 395776 (4k) blocks.
+The filesystem on /dev/vg100/v100 is now 395776 blocks long.
+
+[root@localhost ~]# lvreduce -L 1546M /dev/vg100/v100 
+  Rounding size to boundary between physical extents: 1.51 GiB.
+  WARNING: Reducing active logical volume to 1.51 GiB.
+  THIS MAY DESTROY YOUR DATA (filesystem etc.)
+Do you really want to reduce vg100/v100? [y/n]: y
+  Size of logical volume vg100/v100 changed from 2.00 GiB (512 extents) to 1.51 GiB (387 extents).
+  Logical volume vg100/v100 successfully resized.
+[root@localhost ~]# mount /dev/vg100/v100 /mnt/raid5/
+[root@localhost ~]# df -h | grep v100
+/dev/mapper/vg100-v100   1.5G   13M  1.4G    1% /mnt/raid5

@@ -1,0 +1,8 @@
+---
+- name: pratice
+  hosts: prometheus
+  became: true
+  remote_user: root
+
+  tasks:
+    - name: install package

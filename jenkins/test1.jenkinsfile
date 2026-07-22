@@ -1,0 +1,25 @@
+pipeline {
+    agent { docker { image 'maven:3.9-eclipse-temurin-17' } } // 指定构建环境
+    stages {
+        stage('拉取代码') {
+            steps { checkout scm } // 从 GitHub 拉代码
+        }
+        stage('编译打包') {
+            steps { sh 'mvn clean package -DskipTests' } // 执行 Maven 打包
+        }
+        stage('构建镜像') {
+            steps { sh 'docker build -t my-app:${env.BUILD_ID} .' } // 打包成 Docker 镜像
+        }
+        stage('推送镜像') {
+            steps { sh 'docker push my-registry/my-app:${env.BUILD_ID}' } // 推到公司私服
+        }
+        stage('远程部署') {
+            steps {
+                // 远程登录服务器更新服务
+                sshagent(['target-server-ssh-key']) {
+                    sh 'ssh root@server-ip "docker pull ... && docker run ..."'
+                }
+            }
+        }
+    }
+}

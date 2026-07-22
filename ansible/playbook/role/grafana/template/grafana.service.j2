@@ -1,0 +1,16 @@
+[Unit]
+Description=Grafana
+
+After=network.target
+
+[Service]
+Type=simple
+User={{ grafana_user }}
+WorkingDirectory={{ grafana_instal_dir }}
+Environment="GF_PATHS_HOME=/usr/local/grafana"
+ExecStart={{ grafana_instal_dir }}/bin/grafana
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

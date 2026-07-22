@@ -1,0 +1,4 @@
+sudo docker tag spring-petclinic:9 swr.cn-east-3.myhuaweicloud.com/mdr/spring-petclinic:9
+
+sudo docker push swr.cn-east-3.myhuaweicloud.com/mdr/spring-petclinic:9
+docker pull swr.cn-east-3.myhuaweicloud.com/mdr/spring-petclinic:9

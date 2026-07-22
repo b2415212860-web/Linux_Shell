@@ -1,0 +1,15 @@
+[Unit]
+Description=Node Exporter
+
+After=network.target
+
+[Service]
+Type=simple
+User={{ node_exporter_user }}
+WorkingDirectory={{ node_exporter_install_dir }}
+ExecStart={{ node_exporter_install_dir }}/node_exporter 
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

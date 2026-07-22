@@ -1,0 +1,85 @@
+---
+- name: install_grafana
+  hosts: ansible
+  become: true
+
+  vars:
+    grafana_version: 13.0.2
+    grafana_name: "grafana-enterprise_{{ grafana_version }}"
+    grafana_instal_dir: /usr/local/grafana
+    grafana_user: root
+
+  tasks:
+    - name: Check Grafana.tar.gz
+      stat:
+        path: /tmp/{{ grafana_name }}.tar.gz
+      register: grafana_tar
+
+    - name: download Grafana
+      get_url:
+        url: "https://dl.grafana.com/grafana-enterprise/release/13.0.2/grafana-enterprise_13.0.2_26816849631_linux_amd64.tar.gz"
+        dest: /tmp/{{ grafana_name }}.tar.gz
+      when: not grafana_tar.stat.exists
+
+    - name: Create /usr/local/Grafana Dirctory
+      file:
+        path: "{{ grafana_instal_dir }}"
+        state: directory
+        owner: "{{ grafana_user }}"
+        mode: "0755"
+
+    - name: 安装解压必备依赖包 (tar 和 gzip)
+      yum:
+        name:
+          - tar
+          - gzip
+        state: present
+
+    - name: execute grafana
+      unarchive:
+        src: /tmp/{{ grafana_name }}.tar.gz
+        dest: "{{ grafana_instal_dir }}"
+        remote_src: yes
+        extra_opts:
+          - "--strip-components=1"
+        creates: "{{ grafana_instal_dir }}/grafana"
+        mode: "0755"
+
+    - name: Update grafana service
+      template:
+        src: /opt/ansible/roles/grafana/templates/grafana.service.j2
+        dest: /etc/systemd/system/grafana-server.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+        - Restart grafana
+
+    - name: ensure grafana started 确保运行
+      systemd:
+        name: grafana-server
+        state: started
+        enabled: yes
+
+    - name: firewall grafana 3000
+      firewalld:
+        port: 3000/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+      # 建议加上 ignore_errors，防止部分内网服务器根本没有启用防火墙而导致剧本报错中止
+      ignore_errors: yes
+
+  handlers:
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart grafana
+      systemd:
+        name: grafana
+        state: restarted
+        enabled: yes
+    

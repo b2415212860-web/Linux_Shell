@@ -1,0 +1,5 @@
+# frps.toml
+bindPort = 7000
+
+# 强烈建议设置凭证，防止他人恶意盗用你的中转服务器
+auth.token = "b322927"

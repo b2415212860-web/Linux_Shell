@@ -1,0 +1,117 @@
+---
+- name: Install Node_exporter
+  hosts: all-servers:ansible
+  become: true
+  vars:
+    node_exporter_user: root
+    node_exporter_install_dir: /usr/local/node_exporter
+
+  tasks:
+    - name: 确定压缩包是否存在
+      stat:
+        path: /tmp/node_exporter.tar.gz
+      register: Node_exoprter_file
+
+    - name: ensure
+      file:
+        state: directory
+        path: "{{ node_exporter_install_dir }}"
+
+    - name: Download Node_exporter
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+      when: not Node_exoprter_file.stat.exists
+
+    - name: execute Node_exporter
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: "{{ node_exporter_install_dir }}"
+        remote_src: yes
+        extra_opts:
+          - "--strip-components=1"
+        creates: "{{ node_exporter_install_dir }}/node_exporter"
+        mode: "0755"
+    
+    - name: set nodeexporter service
+      template:
+        src: /opt/ansible/roles/node_exporter/templates/node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - Reload systemd daemon
+        - Restart node_exporter
+
+    - name: ensure prometheus started 确保运行
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+
+    - name: firewall 9100
+      firewalld:
+        port: 9100/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+      # 建议加上 ignore_errors，防止部分内网服务器根本没有启用防火墙而导致剧本报错中止
+      ignore_errors: yes
+
+  handlers:
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart node_exporter
+      systemd:
+        name: node_exporter
+        state: restarted
+        enabled: yes
+
+- name: change prometheus.yml
+  hosts: ansible
+  become: true
+  vars:
+    node_exporter_ips:       # <--- 这是真实的数据源
+      - "172.21.30.140"
+      - "172.21.30.141"
+      - "172.21.30.142"
+      - "172.21.30.143"
+      - "172.21.30.144"
+
+  tasks:
+    - name: update 
+      template:
+        src: /opt/ansible/roles/node_exporter/templates/prometheus.yml.j2
+        dest: /usr/local/prometheus/prometheus.yml
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - Reload systemd daemon
+        - Restart prometheus
+
+    - name: ensure prometheus started 确保运行
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+
+
+  handlers:
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart prometheus
+      systemd:
+        name: prometheus
+        state: restart
+        enabled: yes
+
+
+

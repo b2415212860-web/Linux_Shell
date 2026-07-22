@@ -1,0 +1,10 @@
+[+] Running 4/4
+ ✔ Network halo_halo_network  Created                                                                                                                    0.2s 
+ ✔ Container halo-halodb-1    Healthy                                                                                                                   10.9s 
+ ✘ Container halo-halo-1      Error                                                                                                                    162.1s 
+ ✔ Container my-nginx         Created                                                                                                                    0.1s 
+dependency failed to start: container halo-halo-1 is unhealthy
+
+于是输入docker log halo-halo-1 --tail 进入查看最新日志
+发现所有正常，成功启动
+于是怀疑是否是检查问题

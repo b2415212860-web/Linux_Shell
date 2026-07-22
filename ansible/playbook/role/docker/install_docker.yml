@@ -1,0 +1,33 @@
+---
+- name: Install docker
+  hosts: all_servers
+  become: root
+  tasks:
+    - name: 备份源
+      copy: 
+        src: /etc/yum.repos.d/CentOs-Base.repo
+        dest: /etc/yum.repos.d/CentOs-Base.repo.bak
+    
+    - name: 获得源
+      get_url: 
+        url: "https://mirrors.aliyun.com/repo/Centos-7.repo"
+        dest: /etc/yum.repos.d/CentOs-Base.repo
+        mode: "0644"
+        force: yes
+      notify: clean yum cache
+
+    - name: Instal yum-utils
+      yum:
+        name: 
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
+    
+    - name: Install docker
+      yum:
+        name: docker-ce
+
+  handlers:
+    - name: clean yum cache
+      command: yum clean all && yum makecache

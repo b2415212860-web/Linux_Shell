@@ -1,0 +1,52 @@
+---
+- name: 安装并配置 Tailscale (CentOS/RHEL)
+  hosts: all
+  become: yes  # 对应脚本中的 sudo，以管理员权限执行
+
+  vars:
+    # 将认证密钥定义为变量，方便统一管理
+    tailscale_auth_key: "tskey-auth-kNJqxYiVqe11CNTRL-wJosatQuLu2Z2NxLZUERt2zZZRD2QLPZ"
+
+  tasks:
+    - name: 1. 添加 Tailscale Yum 软件源
+      # 对应 Bash: sudo tee /etc/yum.repos.d/tailscale.repo << EOF...
+      yum_repository:
+        name: tailscale
+        description: Tailscale
+        baseurl: https://pkgs.tailscale.com/stable/centos/$releasever/$basearch
+        enabled: yes
+        gpgcheck: yes
+        gpgkey: https://pkgs.tailscale.com/stable/centos/$releasever/$basearch/repo.gpg
+
+    - name: 2. 手动导入 GPG 密钥 (防止 404 或签名报错)
+      # 对应 Bash: sudo rpm --import ...
+      rpm_key:
+        state: present
+        key: https://pkgs.tailscale.com/stable/centos/7/repo.gpg
+      ignore_errors: yes # 如果上一步源里的 key 没问题，这步即便报错也可以忽略
+
+    - name: 3. 安装 Tailscale 软件包
+      # 对应 Bash: sudo yum install tailscale -y
+      yum:
+        name: tailscale
+        state: present
+
+    - name: 4. 启动并设置 tailscaled 开机自启
+      # 对应 Bash: sudo systemctl enable --now tailscaled
+      systemd:
+        name: tailscaled
+        enabled: yes
+        state: started
+
+    - name: 5. 检查 Tailscale 当前的登录状态
+      # 这是一个高级技巧：我们先看一眼状态，避免每次运行都重复登录
+      command: tailscale status
+      register: ts_status
+      ignore_errors: yes
+      changed_when: false # 这一步只是检查，不标记为系统发生了更改
+
+    - name: 6. 首次登录并加入虚拟网络
+      # 对应 Bash: sudo tailscale up --auth-key=...
+      command: "tailscale up --auth-key={{ tailscale_auth_key }}"
+      # 只有当状态显示未登录，或者根本没状态时，才执行登录操作
+      when: "'Logged out' in ts_status.stdout or ts_status.rc != 0"

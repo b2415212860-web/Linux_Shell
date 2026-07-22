@@ -1,0 +1,17 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network.target
+
+[Service]
+Type=simple
+User={{ prometheus_user }}
+WorkingDirectory={{ prometheus_install_dir }}
+ExecStart={{ prometheus_install_dir }}/prometheus \
+  --config.file={{ prometheus_config_file }} \
+  --web.listen-address={{ prometheus_listen_address }}
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

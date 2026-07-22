@@ -1,0 +1,3 @@
+在
+vim /etc/vsftpd/vsftpd.conf
+加入pasv 被动模式后

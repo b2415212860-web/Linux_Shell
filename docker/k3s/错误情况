@@ -1,0 +1,48 @@
+[root@k3s-master-01 ~]# curl -v https://registry-1.docker.io/v2/
+* About to connect() to registry-1.docker.io port 443 (#0)
+*   Trying 128.242.240.212...
+
+kubectl create deployment nginx --image=nginx
+准备拉取镜像
+kubectl get pods
+在pod界面发现问题
+NAME                        READY   STATUS              RESTARTS   AGE
+pod/nginx-bf5d5cf98-bdtsv   0/1     ContainerCreating   0          17d
+发现nginx pod的状态一直卡在containercreating状态
+准备排查
+kubectl describe pod nginx #查看nginx的事件
+kubectl log nginx #查看nginx启动后的日志情况
+
+发现kubectl describe pod nginx后显示
+
+ Warning  FailedCreatePodSandBox  3m19s (x27 over 3d3h)   kubelet  Failed to create pod sandbox: rpc error: code = Unknown desc = failed to get sandbox image "rancher/mirrored-pause:3.6": failed to pull image "rancher/mirrored-pause:3.6": failed to pull and unpack image "docker.io/rancher/mirrored-pause:3.6": failed to resolve reference "docker.io/rancher/mirrored-pause:3.6": failed to do request: Head "https://registry-1.docker.io/v2/rancher/mirrored-pause/manifests/3.6": dial tcp 208.43.170.231:443: connect: connection refused
+
+ 即 节点无法从dockerhub中拉取sandbox镜像
+ 说明我们当前服务器存在网络访问限制，无法连接到docker Hub，导致pod无法完成初始化
+ ### Docker Hub拉取环境
+ 解决方法：
+ 1.配置镜像加速器
+ 2.手动拉取镜像兵重命名
+ 3.检查系统网络与DNS
+### 企业界安全环境
+1.连通性校验
+使用curl或telnet测试私有仓库是否连通
+2.认证检查 
+查看k3s节点是否配置了正确的pull secret
+3.证书校验
+### 应急处理方案
+如果确定是私有仓库宕机或访问故障，建议采取以下步骤：处理阶段动作目的快速恢复临时更改 imagePullPolicy 为 IfNotPresent只要节点上已有旧版本镜像，即可保证业务不中断。绕过故障临时镜像迁移（使用 docker save/load）若紧急上线，直接在节点本地 load 镜像文件，跳过仓库拉取。排查后端检查仓库后端存储（如 S3、NFS 或磁盘）确认存储空间是否已满或服务进程是否异常。系统恢复重启仓库相关的 Pod 或容器服务往往能解决进程僵
+### 生产环境架构优化建议
+为防止未来再次出现类似阻塞，建议在企业架构中实施以下改进：
+
+配置镜像代理 (Proxy Cache)
+在 Harbor 等仓库中配置“代理缓存”功能。当私有仓库无法拉取镜像时，它可以作为中间缓存，屏蔽后端存储或源站的波动。
+
+引入多副本与高可用 (HA)
+确保私有仓库采用集群模式部署（如 Harbor HA 模式），后端存储使用分布式对象存储（如 MinIO 或 Ceph），避免单点故障。
+
+Pod 镜像预拉取 (Pre-pulling)
+在节点初始化脚本中（如 DaemonSet），提前将核心业务镜像拉取到所有宿主机节点。通过这种方式，即使生产环境仓库突发故障，节点本地已有镜像缓存，容器仍可正常调度与重启。
+
+监控与告警
+配置针对镜像仓库的 Health Check 告警，监控仓库的 HTTP 200 响应率。一旦 registry 接口不可用，立即在生产仪表盘（如 Prometheus/Grafana）中触发报警，而非等到 Pod 进入 ContainerCreating 才发现问题。
