@@ -1,0 +1,81 @@
+# Jenkins Master + Agent 企业级架构
+# 用法: docker-compose up -d
+# 停止: docker-compose down
+# 彻底清理: docker-compose down -v
+
+version: "3.8"
+
+services:
+  # =============================================
+  # Jenkins Master - 只负责调度，不装工具
+  # 访问: http://服务器IP:8090
+  # =============================================
+  jenkins-master:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-master
+    ports:
+      - "8090:8080"       # Web 界面
+      - "50000:50000"     # Agent 通信端口（JNLP）
+    volumes:
+      - /usr/bin/docker:/usr/bin/docker
+      - jenkins:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  # 可选：让 Master 能管理 Docker
+    restart: unless-stopped
+    networks:
+      - jenkins-net
+
+  # =============================================
+  # Shell Agent - 装有 shellcheck，执行 Shell 脚本
+  # 标签: shell-runner
+  # =============================================
+  shell-agent:
+    build:
+      context: ./agent-shell
+      dockerfile: Dockerfile
+    container_name: shell-agent
+    hostname: shell-agent
+    ports:
+      - "2222:22"          # SSH 端口
+    restart: unless-stopped
+    networks:
+      - jenkins-net
+
+  # =============================================
+  # Python Agent - 装有 Python3，执行 Python 脚本
+  # 标签: python-runner
+  # =============================================
+  python-agent:
+    build:
+      context: ./agent-python
+      dockerfile: Dockerfile
+    container_name: python-agent
+    hostname: python-agent
+    ports:
+      - "2223:22"          # SSH 端口
+    restart: unless-stopped
+    networks:
+      - jenkins-net
+
+  # =============================================
+  # Ansible Agent - 装有 Ansible，执行 Playbook
+  # 标签: ansible-runner
+  # =============================================
+  ansible-agent:
+    build:
+      context: ./agent-ansible
+      dockerfile: Dockerfile
+    container_name: ansible-agent
+    hostname: ansible-agent
+    ports:
+      - "2224:22"          # SSH 端口
+    restart: unless-stopped
+    networks:
+      - jenkins-net
+
+volumes:
+  jenkins:
+    external: true
+
+networks:
+  jenkins-net:
+    driver: bridge

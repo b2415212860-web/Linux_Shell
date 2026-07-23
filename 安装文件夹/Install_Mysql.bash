@@ -1,4 +1,6 @@
-
+#!/bin/bash
+setenforce 0
+set -e
 set -euo pipefail
 # MySQL 连接信息（请根据实际修改）
 MYSQL_USER="root"
